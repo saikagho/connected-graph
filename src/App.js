@@ -6,16 +6,13 @@ import './App.css';
 
 class App extends Component {
   inputElement = React.createRef()
-  constructor() {
-    super()
-    this.state = {
-      items: [],
-      graphStatus: [],
-      currentItem: {
-        text: '',
-        key: '',
-      },
-    }
+  state = {
+    items: [],
+    graphStatus: [],
+    currentItem: {
+      text: '',
+      key: '',
+    },
   }
 
   graphConnColorableFunc = async (comp, comnNode) => {
@@ -27,6 +24,49 @@ class App extends Component {
       return "Is a connected graph, but not red blue colorable"
     } else {
       return ""
+    }
+  }
+
+  inputProcessing = (obj) => {
+    const val = (obj[obj.length-1].text)
+    const sides = val.trim().replaceAll(" ", "").split(",");
+    const nodes = sides.map(side => side.replaceAll("-", "").split(""))
+    return nodes;
+  }
+
+  cmnNode = (key, val) => {
+    return (val[0].includes(key[key.length-1]) && val[val.length-1].includes(key[0]))
+  }
+
+  splitArrayIntoChunksOfLen = (arr, len = 2) => {
+    var chunks = [], i = 1, n = arr.length;
+    while (i < n) {
+      chunks.push(arr.slice(i-1, i += len-1)) ;
+    }
+    return chunks;
+  }
+
+  buildAdjList = async(edges) => {
+    const adjList = {}  
+    for (let edge of edges) {
+      let [src, dest] = edge;
+      adjList[src] = adjList[src] === undefined ? [dest] : adjList[src].concat(dest)
+      adjList[dest] = adjList[dest] === undefined ? [src] : adjList[dest].concat(src)
+    }
+    return adjList
+  }
+
+  bfs = (node, adjList, visited) => {
+    const queue = [node];
+    visited[node] = true;
+    while(queue.length) {
+      let curNode = queue.shift();
+      for (let neighbor of adjList[curNode]) {
+        if(!visited[neighbor]) {
+          visited[neighbor] = true
+          queue.push(neighbor)
+        }
+      }
     }
   }
   
@@ -51,66 +91,22 @@ class App extends Component {
     e.preventDefault()
     const newItem = this.state.currentItem
 
-    const inputProcessing = (obj) => {
-      const val = (obj[obj.length-1].text)
-      const sides = val.trim().replaceAll(" ", "").split(",");
-      const nodes = sides.map(side => side.replaceAll("-", "").split(""))
-      return nodes;
-    }
-
-    const splitArrayIntoChunksOfLen = (arr, len = 2) => {
-      var chunks = [], i = 1, n = arr.length;
-      while (i < n) {
-        chunks.push(arr.slice(i-1, i += len-1)) ;
-      }
-      return chunks;
-    }
-    
-    const buildAdjList = async(edges) => {
-      console.log(JSON.stringify(edges));
-      const adjList = {}  
-      for (let edge of edges) {
-        let [src, dest] = edge;
-        adjList[src] = adjList[src] === undefined ? [dest] : adjList[src].concat(dest)
-        adjList[dest] = adjList[dest] === undefined ? [src] : adjList[dest].concat(src)
-      }
-      return adjList
-    }
-    
-    const bfs = (node, adjList, visited) => {
-      const queue = [node];
-      visited[node] = true;
-      while(queue.length) {
-        let curNode = queue.shift();
-        for (let neighbor of adjList[curNode]) {
-          if(!visited[neighbor]) {
-            visited[neighbor] = true
-            queue.push(neighbor)
-          }
-        }
-      }
-    }
-    
-    const cmnNode = (key, val) => {
-      return (val[0].includes(key[key.length-1]) && val[val.length-1].includes(key[0]))
-    }
-    
     if (newItem.text !== '') {
       const items = [...this.state.items, newItem]
       let visited = {}, numComponents = 0;
-      let nodesArray = inputProcessing(items);
-
-      nodesArray = nodesArray.map((e) => (e.length > 2)  ? splitArrayIntoChunksOfLen(e): e);
+      let nodesArray = this.inputProcessing(items);
+      nodesArray = nodesArray.map((e) => (e.length > 2)  ? this.splitArrayIntoChunksOfLen(e): e);
       nodesArray = nodesArray.length === 1 ? nodesArray[0] : nodesArray;
-      const adjList = await buildAdjList(nodesArray)
+      
+      const adjList = await this.buildAdjList(nodesArray)
       const grpArrVal = Object.values(adjList)
       const grpArrKey = Object.keys(adjList)
-      const comnNode = cmnNode(grpArrKey, grpArrVal);
+      const comnNode = this.cmnNode(grpArrKey, grpArrVal);
 
       for (let vertex=0; vertex<grpArrKey.length; vertex++){
           if(!visited[grpArrKey[vertex]]) {
             numComponents = numComponents + 1;
-            bfs(grpArrKey[vertex], adjList, visited);
+            this.bfs(grpArrKey[vertex], adjList, visited);
           }
       }
       
